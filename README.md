@@ -42,7 +42,3 @@ This n8n workflow provides **intelligent, automated appointment reminders** with
 - ✅ **90% time savings** on reminder tasks
 - ✅ **100% consistency** in patient communication
 - ✅ **Multi-channel reach** for better engagement
-
----
-
-## 🔄 Workflow Architecture
