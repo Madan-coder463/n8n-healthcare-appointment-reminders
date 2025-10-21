@@ -1,0 +1,323 @@
+{
+  "name": "CareWell Clinic - Appointment Reminders (Daily 8AM)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## CareWell Clinic - Appointment Reminders (Daily 8AM)"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -896,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "f03a977a-7643-4d7b-b7ef-a824af3dad0d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {}
+          ]
+        }
+      },
+      "id": "0fe7a161-d40e-47e6-8429-8ab423c627d2",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "airtableTokenApi",
+        "operation": "list",
+        "application": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://airtable.com/appRMSHJiJT4ulcps/shr6dh5ShZJo2buEz",
+          "__regex": "https://airtable.com/([a-zA-Z0-9]{2,})"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tbl2GCFgTE3dcJvLN"
+        },
+        "additionalOptions": {}
+      },
+      "id": "bdcf04e6-fd09-4ea7-a278-fa3c880e1473",
+      "name": "Airtable - Fetch Appointments",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        304
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "k0lGjNgShfndz1J6",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get tomorrow's date (without time for comparison)\nconst tomorrow = new Date();\ntomorrow.setDate(tomorrow.getDate() + 1);\nconst tomorrowDate = tomorrow.toISOString().split('T')[0]; // Format: \"2025-10-17\"\n\n// Filter appointments that match tomorrow's date\nconst tomorrowAppointments = [];\n\nfor (const item of $input.all()) {\n  const appointmentDate = item.json.fields[\"Appointment Date\"];\n  \n  // Check if appointment is for tomorrow\n  if (appointmentDate === tomorrowDate) {\n    tomorrowAppointments.push({\n      json: {\n        patientName: item.json.fields[\"Patient Name\"],\n        appointmentDate: appointmentDate,\n        doctorName: item.json.fields[\"Doctor Name\"],\n        phoneNumber: item.json.fields[\"Phone No\"] || null,\n        email: item.json.fields[\"Email\"] || null,\n        recordId: item.json.id\n      }\n    });\n  }\n}\n\n// Return filtered appointments (or empty array if none found)\nreturn tomorrowAppointments;"
+      },
+      "id": "778ec890-c830-4165-b386-b2c994b63724",
+      "name": "Code - Filter Tomorrow's Appointments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        304
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "a733ff80-0b37-4f0a-9506-b75ebe24aa61",
+      "name": "Split In Batches - Process Each Appointment",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.phoneNumber }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "e39a81f0-2328-4db5-bd8d-2e5b160d472b",
+      "name": "IF - Check for Phone",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.email }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "4b8de220-82f1-4064-8465-77308d3de29e",
+      "name": "IF - Check for Email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.doctorName }}",
+              "value2": "Dr. Smith"
+            }
+          ]
+        }
+      },
+      "id": "dbd3b22f-c3d9-42e1-9659-2c4d6dc54c26",
+      "name": "IF - Check for Dr. Smith",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "Automation Demo",
+        "text": "={{ $json.patientName }}\n{{ $json.appointmentDate }}\n{{ $json.doctorName }}",
+        "otherOptions": {},
+        "attachments": []
+      },
+      "id": "402ac9bf-eb1f-45b9-9874-fc90c29706f2",
+      "name": "Slack - Notify Dr. Smith Appointment",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        80,
+        480
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "0Mgry3NrJuOnLS8Z",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=CareWell - Appointment Reminder",
+        "message": "=const emailSubject = `Appointment Reminder - {{ $json.appointmentDate }} Tomorrow`;\n\nconst emailBody = `\n<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }\n    .content { background-color: #f9f9f9; padding: 20px; border-radius: 5px; margin-top: 20px; }\n    .details { background-color: white; padding: 15px; border-left: 4px solid #4CAF50; margin: 15px 0; }\n    .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }\n    .button { background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h2>CareWell Clinic</h2>\n      <p>Appointment Reminder</p>\n    </div>\n    \n    <div class=\"content\">\n      <p>Dear {{ $json.patientName }},</p>\n      \n      <p>This is a friendly reminder about your upcoming appointment:</p>\n      \n      <div class=\"details\">\n        <strong>Doctor:</strong> {{ $json.doctorName }}<br>\n        <strong>Date:</strong> Tomorrow, {{ $json.appointmentDate }}<br>\n        <strong>Location:</strong> CareWell Clinic, MG Road, Bangalore\n      </div>\n      \n      <p><strong>Important:</strong> Please arrive 10 minutes early for check-in.</p>\n      \n      <p>If you need to reschedule or cancel, please contact us at least 24 hours in advance.</p>\n      \n      <a href=\"tel:08012345678\" class=\"button\">Call to Confirm: 080-1234-5678</a>\n    </div>\n    \n    <div class=\"footer\">\n      <p>CareWell Clinic | MG Road, Bangalore | 080-1234-5678</p>\n      <p>This is an automated reminder. Please do not reply to this email.</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    emailSubject: emailSubject,\n    emailBody: emailBody\n  }\n}];",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        288
+      ],
+      "id": "691a325a-5b57-4c1d-bd72-f9127515af97",
+      "name": "Send a message",
+      "webhookId": "3e3f4d8d-58ab-4c6c-a700-d4609449bf9e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "DH6dxNMfCxRsHxS6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1412483547",
+        "text": "={{ $json.patientName }}\n{{ $json.appointmentDate }}\n{{ $json.doctorName }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        96
+      ],
+      "id": "ce567cd5-23b3-43d5-a468-106b2b30b917",
+      "name": "Send a text message",
+      "webhookId": "925dd383-02a9-45b9-a13c-80fff7316b74",
+      "credentials": {
+        "telegramApi": {
+          "id": "dUxELmX7bEoFSUVa",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Airtable - Fetch Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable - Fetch Appointments": {
+      "main": [
+        [
+          {
+            "node": "Code - Filter Tomorrow's Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Filter Tomorrow's Appointments": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches - Process Each Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches - Process Each Appointment": {
+      "main": [
+        [
+          {
+            "node": "IF - Check for Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF - Check for Phone",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF - Check for Dr. Smith",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Check for Phone": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Check for Email": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Check for Dr. Smith": {
+      "main": [
+        [
+          {
+            "node": "Slack - Notify Dr. Smith Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7201b455-65d8-4d4c-acd5-dda33f853004",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bfb7c60ff0bfbd15c5a3f501886749dda4aa7a99fea95a34a5363c61ece51ae7"
+  },
+  "id": "v6L5mn72vi7EGKHr",
+  "tags": []
+}
